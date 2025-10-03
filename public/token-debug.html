@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .log { background: #000; color: #0f0; padding: 10px; height: 400px; overflow-y: scroll; font-family: monospace; }
+        .error { color: #f00; }
+        .success { color: #0f0; }
+        .warning { color: #ff0; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Token Debug</h1>
+    <button onclick="testTokenGeneration()">Test Token Generation</button>
+    <button onclick="testLiveKitConnection()">Test LiveKit Connection</button>
+    <button onclick="clearLog()">Clear</button>
+    
+    <div id="log" class="log"></div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f00' : type === 'success' ? '#0f0' : type === 'warning' ? '#ff0' : '#fff';
+            logDiv.innerHTML += `<div style="color: ${color}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        async function testTokenGeneration() {
+            log('Testing token generation...');
+            
+            try {
+                const response = await fetch('/api/livekit/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        roomName: 'test-room',
+                        participantName: 'debug-user'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                log('Token response received:', 'success');
+                log('Response data: ' + JSON.stringify(data, null, 2));
+                
+                if (data.token) {
+                    if (typeof data.token === 'string' && data.token.length > 0) {
+                        log('Token is a valid string!', 'success');
+                        log('Token length: ' + data.token.length);
+                        log('Token preview: ' + data.token.substring(0, 50) + '...');
+                        
+                        // Decode JWT to check contents
+                        try {
+                            const parts = data.token.split('.');
+                            if (parts.length === 3) {
+                                const payload = JSON.parse(atob(parts[1]));
+                                log('Token payload: ' + JSON.stringify(payload, null, 2));
+                                
+                                // Check expiration
+                                const now = Math.floor(Date.now() / 1000);
+                                if (payload.exp && payload.exp > now) {
+                                    const expDate = new Date(payload.exp * 1000);
+                                    log('Token expires: ' + expDate.toLocaleString(), 'success');
+                                } else {
+                                    log('Token appears expired or invalid exp claim', 'warning');
+                                }
+                            }
+                        } catch (e) {
+                            log('Error decoding JWT: ' + e.message, 'error');
+                        }
+                    } else {
+                        log('Token is not a valid string!', 'error');
+                        log('Token type: ' + typeof data.token);
+                        log('Token value: ' + data.token);
+                    }
+                } else {
+                    log('No token in response!', 'error');
+                }
+
+                if (data.url) {
+                    log('LiveKit URL: ' + data.url, 'success');
+                }
+
+            } catch (error) {
+                log('Token generation failed: ' + error.message, 'error');
+            }
+        }
+
+        async function testLiveKitConnection() {
+            log('Testing LiveKit connection...');
+            
+            try {
+                // First get a token
+                const tokenResponse = await fetch('/api/livekit/token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        roomName: 'test-room',
+                        participantName: 'connection-test'
+                    })
+                });
+
+                if (!tokenResponse.ok) {
+                    throw new Error(`Token request failed: ${tokenResponse.status}`);
+                }
+
+                const tokenData = await tokenResponse.json();
+                log('Token received for connection test', 'success');
+
+                if (!tokenData.token || typeof tokenData.token !== 'string') {
+                    log('Invalid token for connection test', 'error');
+                    return;
+                }
+
+                if (!tokenData.url) {
+                    log('No LiveKit URL in token response', 'error');
+                    return;
+                }
+
+                // Check if LiveKit is available
+                if (typeof window.LiveKit === 'undefined') {
+                    log('LiveKit not available, loading...', 'warning');
+                    
+                    // Load LiveKit
+                    const script = document.createElement('script');
+                    script.src = '/livekit-simple.js';
+                    script.onload = () => {
+                        log('LiveKit script loaded, waiting for ready event...');
+                        window.addEventListener('livekitReady', () => {
+                            log('LiveKit ready, attempting connection...');
+                            performConnectionTest(tokenData.url, tokenData.token);
+                        });
+                    };
+                    script.onerror = () => {
+                        log('Failed to load LiveKit script', 'error');
+                    };
+                    document.head.appendChild(script);
+                } else {
+                    performConnectionTest(tokenData.url, tokenData.token);
+                }
+
+            } catch (error) {
+                log('Connection test failed: ' + error.message, 'error');
+            }
+        }
+
+        async function performConnectionTest(url, token) {
+            try {
+                log('Creating LiveKit room...');
+                const room = new window.LiveKit.Room();
+                
+                log('Setting up room event listeners...');
+                room.on('connected', () => {
+                    log('Connected to LiveKit room!', 'success');
+                    room.disconnect();
+                });
+                
+                room.on('disconnected', () => {
+                    log('Disconnected from LiveKit room', 'success');
+                });
+                
+                room.on('connectionStateChanged', (state) => {
+                    log('Connection state: ' + state);
+                });
+
+                // Attempt connection
+                log('Attempting to connect to: ' + url);
+                log('Using token: ' + token.substring(0, 50) + '...');
+                
+                await room.connect(url, token);
+                
+            } catch (error) {
+                log('LiveKit connection failed: ' + error.message, 'error');
+                log('Error details: ' + JSON.stringify(error, null, 2));
+            }
+        }
+
+        // Auto-test on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            log('Token debug page loaded');
+        });
+    </script>
+</body>
+</html>

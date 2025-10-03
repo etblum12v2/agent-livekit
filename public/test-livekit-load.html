@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveKit Loading Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .loading { background: #fff3cd; color: #856404; }
+        #console { 
+            background: #000; 
+            color: #0f0; 
+            padding: 10px; 
+            height: 300px; 
+            overflow-y: scroll; 
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>LiveKit Loading Test</h1>
+    
+    <div id="livekitStatus" class="status loading">Loading LiveKit...</div>
+    <div id="socketioStatus" class="status loading">Loading Socket.IO...</div>
+    <div id="overallStatus" class="status loading">Testing libraries...</div>
+    
+    <h3>Console Output:</h3>
+    <div id="console"></div>
+    
+    <button onclick="location.reload()">Reload Test</button>
+
+    <script>
+        // Capture console output
+        const consoleDiv = document.getElementById('console');
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        
+        function addToConsole(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f00' : type === 'warn' ? '#ff0' : '#0f0';
+            consoleDiv.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        
+        console.log = (...args) => {
+            originalLog(...args);
+            addToConsole(args.join(' '), 'log');
+        };
+        console.error = (...args) => {
+            originalError(...args);
+            addToConsole(args.join(' '), 'error');
+        };
+        console.warn = (...args) => {
+            originalWarn(...args);
+            addToConsole(args.join(' '), 'warn');
+        };
+
+        // Test LiveKit loading
+        let livekitLoaded = false;
+        let socketioLoaded = false;
+
+        function checkStatus() {
+            const livekitStatus = document.getElementById('livekitStatus');
+            const socketioStatus = document.getElementById('socketioStatus');
+            const overallStatus = document.getElementById('overallStatus');
+
+            // Check LiveKit
+            if (typeof LiveKit !== 'undefined') {
+                livekitLoaded = true;
+                livekitStatus.textContent = 'LiveKit: ✅ Loaded successfully';
+                livekitStatus.className = 'status success';
+                console.log('LiveKit object:', LiveKit);
+            } else {
+                livekitStatus.textContent = 'LiveKit: ❌ Not loaded';
+                livekitStatus.className = 'status error';
+            }
+
+            // Check Socket.IO
+            if (typeof io !== 'undefined') {
+                socketioLoaded = true;
+                socketioStatus.textContent = 'Socket.IO: ✅ Loaded successfully';
+                socketioStatus.className = 'status success';
+                console.log('Socket.IO object:', io);
+            } else {
+                socketioStatus.textContent = 'Socket.IO: ❌ Not loaded';
+                socketioStatus.className = 'status error';
+            }
+
+            // Overall status
+            if (livekitLoaded && socketioLoaded) {
+                overallStatus.textContent = 'All libraries loaded successfully! ✅';
+                overallStatus.className = 'status success';
+                console.log('All libraries loaded successfully!');
+            } else {
+                overallStatus.textContent = 'Some libraries failed to load ❌';
+                overallStatus.className = 'status error';
+            }
+        }
+
+        // Load scripts
+        function loadScripts() {
+            console.log('Starting to load external scripts...');
+            
+            // Load LiveKit using simple wrapper
+            const livekitScript = document.createElement('script');
+            livekitScript.src = '/livekit-simple.js';
+            livekitScript.onload = () => {
+                console.log('LiveKit wrapper script loaded');
+                // Listen for LiveKit ready event
+                window.addEventListener('livekitReady', () => {
+                    console.log('LiveKit ready event received');
+                    checkStatus();
+                });
+                // Also check periodically
+                setTimeout(checkStatus, 1000);
+            };
+            livekitScript.onerror = () => {
+                console.error('Failed to load LiveKit wrapper script');
+                checkStatus();
+            };
+            document.head.appendChild(livekitScript);
+
+            // Load Socket.IO
+            const socketioScript = document.createElement('script');
+            socketioScript.src = 'https://unpkg.com/socket.io-client@4.7.0/dist/socket.io.js';
+            socketioScript.onload = () => {
+                console.log('Socket.IO script loaded from CDN');
+                checkStatus();
+            };
+            socketioScript.onerror = () => {
+                console.error('Failed to load Socket.IO script from CDN');
+                checkStatus();
+            };
+            document.head.appendChild(socketioScript);
+        }
+
+        // Start the test
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded, starting library test...');
+            loadScripts();
+            
+            // Also check periodically in case scripts load asynchronously
+            const interval = setInterval(() => {
+                checkStatus();
+                if (livekitLoaded && socketioLoaded) {
+                    clearInterval(interval);
+                }
+            }, 100);
+        });
+    </script>
+</body>
+</html>

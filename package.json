@@ -15,7 +15,17 @@
     "test:watch": "node --test --watch --import tsx",
     "dev": "tsx src/agent.ts dev",
     "download-files": "pnpm run build && node dist/agent.js download-files",
-    "start": "node dist/agent.js start"
+    "start": "node dist/agent.js start",
+    "server": "node server.js",
+    "dev-server": "tsx server.js",
+    "visual": "pnpm run dev-server",
+    "start-visual": "node start-visual-system.js",
+    "full-system": "node start-visual-system.js",
+    "socketio-server": "node server-socketio.js",
+    "token-server": "node server-with-tokens.js",
+    "enhanced-agent": "tsx src/agent-enhanced.ts dev",
+    "deploy": "tsx src/agent-enhanced.ts start",
+    "complete-system": "node start-complete-system.js"
   },
   "engines": {
     "node": ">=22.0.0",
@@ -38,6 +48,13 @@
     "@livekit/agents-plugin-silero": "^1.0.7",
     "@livekit/noise-cancellation-node": "^0.1.9",
     "dotenv": "^17.2.1",
+    "express": "^4.18.2",
+    "livekit-client": "2.15.8",
+    "livekit-server-sdk": "^2.14.0",
+    "node-fetch": "^3.3.2",
+    "sharp": "^0.34.4",
+    "socket.io": "^4.7.0",
+    "socket.io-client": "^4.7.0",
     "zod": "^3.25.76"
   }
 }

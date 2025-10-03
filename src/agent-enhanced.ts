@@ -14,15 +14,19 @@ import { BackgroundVoiceCancellation } from '@livekit/noise-cancellation-node';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { SlideGenerator, type SlideData } from './slide-generator';
+import { SlideGenerator, type SlideData } from './slide-generator.js';
+import fetch from 'node-fetch';
 
 dotenv.config({ path: '.env.local' });
 
 class Assistant extends voice.Agent {
-  private currentLesson: string = 'welcome';
-  private lessonProgress: number = 0;
+  public currentLesson: string = 'welcome';
+  public lessonProgress: number = 0;
   private slideGenerator: SlideGenerator;
   private currentSlide: Buffer | null = null;
+  private webInterfaceUrl: string = process.env.WEB_INTERFACE_URL || 'http://localhost:3000';
+  private currentRoom: string = '';
+  
   private lessonTopics: Record<string, any> = {
     welcome: {
       title: "Welcome to HCV Training",
@@ -97,12 +101,13 @@ class Assistant extends voice.Agent {
 
   constructor() {
     super({
-      instructions: `You are a specialized HCV (Housing Choice Voucher) Training Assistant with a structured lesson plan system.
+      instructions: `You are a specialized HCV (Housing Choice Voucher) Training Assistant with a structured lesson plan system and automatic visual slide generation.
 
       Your role is to:
       - Provide structured HCV education through guided lessons
       - Start each session with a lesson plan overview
       - Progress through topics systematically
+      - Automatically generate visual slides for each topic
       - Adapt to user needs while maintaining educational structure
       - Provide accurate information about HUD regulations and PHA requirements
       - Help users understand rent calculations, payment standards, and procedures
@@ -114,6 +119,13 @@ class Assistant extends voice.Agent {
       - Ask comprehension questions to ensure understanding
       - Provide practical examples and scenarios
       - Allow users to ask questions but keep focus on lesson objectives
+      - Automatically generate slides when starting topics or lessons
+      
+      VISUAL INTEGRATION:
+      - Generate slides automatically when starting lessons
+      - Create slides for each major topic
+      - Use different slide types (title, content, chart, process) as appropriate
+      - Send slide updates to the web interface in real-time
       
       You speak clearly and conversationally, as if teaching HCV concepts step by step.
       Keep responses educational and structured, always encouraging further learning.`,
@@ -235,6 +247,9 @@ class Assistant extends voice.Agent {
             });
             response += `\nLet's begin with the first topic: ${lesson.topics[0]}`;
             
+            // Automatically generate and send slide for lesson start
+            await this.sendSlideUpdate('title', lesson.topics[0]);
+            
             return response;
           },
         }),
@@ -251,10 +266,22 @@ class Assistant extends voice.Agent {
             this.lessonProgress++;
             if (this.lessonProgress >= currentLessonData.topics.length) {
               this.lessonProgress = currentLessonData.topics.length - 1;
+              
+              // Generate completion slide
+              await this.sendSlideUpdate('content', 'Lesson Complete', [
+                `Congratulations! You've completed the ${currentLessonData.title} lesson.`,
+                `Topics covered: ${currentLessonData.topics.length}`,
+                'Would you like to start a new lesson or review any topics?'
+              ]);
+              
               return `We've completed all topics in the ${currentLessonData.title} lesson! Would you like to start a new lesson or review any topics?`;
             }
 
             const currentTopic = currentLessonData.topics[this.lessonProgress];
+            
+            // Automatically generate slide for new topic
+            await this.sendSlideUpdate('content', currentTopic);
+            
             return `Moving to topic ${this.lessonProgress + 1}: ${currentTopic}\n\nLet me explain this topic in detail...`;
           },
         }),
@@ -280,7 +307,17 @@ class Assistant extends voice.Agent {
             customContent: z.array(z.string()).nullable().describe('Custom content for the slide'),
           }),
           execute: async ({ slideType, customContent }) => {
-            return await this.generateSlideForTopic(slideType as 'title' | 'content' | 'chart' | 'process', customContent || undefined);
+            const currentLessonData = this.lessonTopics[this.currentLesson];
+            if (!currentLessonData) {
+              return "No lesson is currently active. Please start a lesson first.";
+            }
+
+            const currentTopic = currentLessonData.topics[this.lessonProgress];
+            
+            // Generate and send slide
+            await this.sendSlideUpdate(slideType as 'title' | 'content' | 'chart' | 'process', currentTopic, customContent);
+            
+            return `[Visual slide generated and displayed for: ${currentTopic}]`;
           },
         }),
       },
@@ -289,10 +326,69 @@ class Assistant extends voice.Agent {
     this.slideGenerator = new SlideGenerator();
   }
 
-  private async generateSlideForTopic(slideType: 'title' | 'content' | 'chart' | 'process', customContent?: string[]): Promise<string> {
+  // Method to send slide updates to web interface
+  private async sendSlideUpdate(slideType: 'title' | 'content' | 'chart' | 'process', topic: string, customContent?: string[]) {
+    try {
+      console.log('📊 Agent sending slide update to room:', this.currentRoom);
+      console.log('📊 Slide type:', slideType, 'Topic:', topic);
+      
+      const currentLessonData = this.lessonTopics[this.currentLesson];
+      if (!currentLessonData) return;
+
+      const slideData = await this.generateSlideForTopic(slideType, customContent);
+      
+      // Send slide update to web interface
+      const response = await fetch(`${this.webInterfaceUrl}/api/agent/slide-update`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          roomName: this.currentRoom,
+          slideData: slideData
+        })
+      });
+
+      if (!response.ok) {
+        console.warn('Failed to send slide update to web interface');
+      }
+    } catch (error) {
+      console.warn('Error sending slide update:', error);
+    }
+  }
+
+  // Method to send agent messages to web interface
+  private async sendAgentMessage(message: string, type: string = 'agent-speech') {
+    try {
+      const response = await fetch(`${this.webInterfaceUrl}/api/agent/message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          roomName: this.currentRoom,
+          message: message,
+          type: type
+        })
+      });
+
+      if (!response.ok) {
+        console.warn('Failed to send message to web interface');
+      }
+    } catch (error) {
+      console.warn('Error sending message:', error);
+    }
+  }
+
+  // Set current room for web interface communication
+  setCurrentRoom(roomName: string) {
+    this.currentRoom = roomName;
+  }
+
+  private async generateSlideForTopic(slideType: 'title' | 'content' | 'chart' | 'process', customContent?: string[]): Promise<any> {
     const currentLessonData = this.lessonTopics[this.currentLesson];
     if (!currentLessonData) {
-      return "No lesson is currently active. Please start a lesson first.";
+      return null;
     }
 
     const currentTopic = currentLessonData.topics[this.lessonProgress];
@@ -354,10 +450,10 @@ class Assistant extends voice.Agent {
       // Also save as HTML file for debugging
       this.slideGenerator.saveSlide(slideData, `slide_${Date.now()}.html`);
       
-      return `[Visual slide generated and displayed for: ${currentTopic}]`;
+      return slideDataJson;
     } catch (error) {
       console.error('Error generating slide:', error);
-      return `[Slide generation failed, but I can still explain ${currentTopic} verbally]`;
+      return null;
     }
   }
 
@@ -482,16 +578,6 @@ export default defineAgent({
       vad: ctx.proc.userData.vad! as silero.VAD,
     });
 
-    // To use a realtime model instead of a voice pipeline, use the following session setup instead.
-    // (Note: This is for the OpenAI Realtime API. For other providers, see https://docs.livekit.io/agents/models/realtime/))
-    // 1. Install '@livekit/agents-plugin-openai'
-    // 2. Set OPENAI_API_KEY in .env.local
-    // 3. Add import `import * as openai from '@livekit/agents-plugin-openai'` to the top of this file
-    // 4. Use the following session setup instead of the version above
-    // const session = new voice.AgentSession({
-    //   llm: new openai.realtime.RealtimeModel({ voice: 'marin' }),
-    // });
-
     // Metrics collection, to measure pipeline performance
     // For more information, see https://docs.livekit.io/agents/build/metrics/
     const usageCollector = new metrics.UsageCollector();
@@ -507,9 +593,22 @@ export default defineAgent({
 
     ctx.addShutdownCallback(logUsage);
 
+    // Create assistant instance
+    const assistant = new Assistant();
+    
+    // Set the current room for web interface communication
+    console.log('Room context:', ctx.room);
+    console.log('Room name:', ctx.room.name);
+    console.log('Room SID:', ctx.room.sid);
+    
+    // Use room SID or name, fallback to default
+    const roomIdentifier = ctx.room.name || ctx.room.sid || 'hcv-training-room';
+    console.log('Setting room identifier:', roomIdentifier);
+    assistant.setCurrentRoom(roomIdentifier);
+
     // Start the session, which initializes the voice pipeline and warms up the models
     await session.start({
-      agent: new Assistant(),
+      agent: assistant,
       room: ctx.room,
       inputOptions: {
         // LiveKit Cloud enhanced noise cancellation
@@ -522,18 +621,36 @@ export default defineAgent({
     // Join the room and connect to the user
     await ctx.connect();
 
-    // Send welcome message with lesson plan
+    // Send welcome message and automatically start the welcome lesson
     setTimeout(async () => {
       try {
-        await session.say("Welcome to HCV Training! I'm your HCV learning assistant with visual slides. Let me show you our lesson plan.", {
+        await session.say("Welcome to HCV Training! I'm your HCV learning assistant with visual slides. Let me start with our welcome lesson.", {
           allowInterruptions: true,
         });
         
-        // Brief pause then show lesson plan
+        // Automatically start the welcome lesson with slides
         setTimeout(async () => {
-          await session.say("We have seven comprehensive lessons covering everything from HCV basics to tenant rights. I'll be showing you visual slides as we go through each topic. Would you like me to show you the complete lesson plan, or would you prefer to start with a specific topic?", {
+          // Set up the welcome lesson
+          assistant.currentLesson = 'welcome';
+          assistant.lessonProgress = 0;
+          
+          // Generate and send the welcome slide
+          await assistant.sendSlideUpdate('title', 'What is HCV and why it exists');
+          
+          // Continue with the lesson content
+          await session.say("Let's begin with understanding what HCV is and why this program exists. HCV stands for Housing Choice Voucher, which is a federal program that helps low-income families afford decent, safe, and sanitary housing in the private market.", {
             allowInterruptions: true,
           });
+          
+          // Generate content slide for the first topic
+          setTimeout(async () => {
+            await assistant.sendSlideUpdate('content', 'What is HCV and why it exists');
+            
+            await session.say("The program was created to provide housing stability, reduce homelessness, and give families the freedom to choose where they want to live. As we go through each topic, I'll be showing you visual slides to help explain the concepts.", {
+              allowInterruptions: true,
+            });
+          }, 3000);
+          
         }, 2000);
       } catch (error) {
         console.error('Error sending welcome message:', error);

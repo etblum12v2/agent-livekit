@@ -1,99 +1,240 @@
-<a href="https://livekit.io/">
-  <img src="./.github/assets/livekit-mark.png" alt="LiveKit logo" width="100" height="100">
-</a>
+# HCV Training System with Visual Interface
 
-# LiveKit Agents Starter - Node.js
+This is a complete HCV (Housing Choice Voucher) training system that combines a LiveKit voice agent with dynamic visual slides. The system provides interactive voice conversations with real-time slide generation for enhanced learning.
 
-A complete starter project for building voice AI apps with [LiveKit Agents for Node.js](https://github.com/livekit/agents-js) and [LiveKit Cloud](https://cloud.livekit.io/).
+## Features
 
-The starter project includes:
+- 🎤 **Voice Agent**: LiveKit-powered AI agent with Cartesia TTS
+- 📊 **Dynamic Slides**: Real-time slide generation with charts, processes, and content
+- 🎯 **Structured Lessons**: 7 comprehensive HCV training modules
+- 🖥️ **Web Interface**: Modern, responsive web interface for slide display
+- 🔄 **Real-time Updates**: Slides update as you progress through lessons
 
-- A simple voice AI assistant, ready for extension and customization
-- A voice AI pipeline with [models](https://docs.livekit.io/agents/models) from OpenAI, Cartesia, and AssemblyAI served through LiveKit Cloud
-  - Easily integrate your preferred [LLM](https://docs.livekit.io/agents/models/llm/), [STT](https://docs.livekit.io/agents/models/stt/), and [TTS](https://docs.livekit.io/agents/models/tts/) instead, or swap to a realtime model like the [OpenAI Realtime API](https://docs.livekit.io/agents/models/realtime/openai)
-- [LiveKit Turn Detector](https://docs.livekit.io/agents/build/turns/turn-detector/) for contextually-aware speaker detection, with multilingual support
-- [Background voice cancellation](https://docs.livekit.io/home/cloud/noise-cancellation/)
-- Integrated [metrics and logging](https://docs.livekit.io/agents/build/metrics/)
-- A Dockerfile ready for [production deployment](https://docs.livekit.io/agents/ops/deployment/)
+## Quick Start
 
-This starter app is compatible with any [custom web/mobile frontend](https://docs.livekit.io/agents/start/frontend/) or [SIP-based telephony](https://docs.livekit.io/agents/start/telephony/).
+### Prerequisites
 
-## Dev Setup
+- Node.js 22+ 
+- pnpm 10+
+- LiveKit Cloud account (for voice features)
 
-This project uses [pnpm](https://pnpm.io/) as the package manager.
+### Installation
 
-Clone the repository and install dependencies:
-
-```console
-cd agent-starter-node
+1. **Install dependencies:**
+   ```bash
 pnpm install
 ```
 
-Sign up for [LiveKit Cloud](https://cloud.livekit.io/) then set up the environment by copying `.env.example` to `.env.local` and filling in the required keys:
+2. **Set up environment variables:**
+   Create a `.env.local` file with your API keys:
+   ```env
+   OPENAI_API_KEY=your_openai_key
+   LIVEKIT_URL=your_livekit_url
+   LIVEKIT_API_KEY=your_livekit_api_key
+   LIVEKIT_API_SECRET=your_livekit_api_secret
+   ```
 
-- `LIVEKIT_URL`
-- `LIVEKIT_API_KEY`
-- `LIVEKIT_API_SECRET`
-
-You can load the LiveKit environment automatically using the [LiveKit CLI](https://docs.livekit.io/home/cli/cli-setup):
-
+3. **Start the complete system:**
 ```bash
-lk cloud auth
-lk app env -w -d .env.local
+   pnpm run full-system
+   ```
+
+4. **Access the interface:**
+   - Open http://localhost:3000 in your browser
+   - Select a lesson from the dropdown
+   - Click "Connect to Agent" to start voice interaction
+   - Use "Generate Slide" to create visual content
+
+## Available Scripts
+
+- `pnpm run full-system` - Start both agent and visual interface
+- `pnpm run visual` - Start only the visual web interface
+- `pnpm run dev` - Start only the LiveKit agent
+- `pnpm run build` - Build the TypeScript agent
+- `pnpm run test` - Run tests
+
+## System Architecture
+
+### Components
+
+1. **LiveKit Agent** (`src/agent.ts`)
+   - Voice AI powered by OpenAI GPT-4
+   - Cartesia TTS for natural speech
+   - Structured HCV lesson system
+   - Slide generation tools
+
+2. **Visual Interface** (`public/index.html`)
+   - Modern web interface
+   - Real-time slide display
+   - Lesson navigation
+   - Connection management
+
+3. **Web Server** (`server.js`)
+   - Express.js server
+   - API endpoints for slide data
+   - Static file serving
+
+4. **Slide Generator** (`src/slide-generator.ts`)
+   - HTML-based slide generation
+   - Multiple slide types (title, content, chart, process)
+   - Responsive design
+
+### Lesson Modules
+
+1. **Welcome to HCV Training** - Introduction and overview
+2. **HCV Eligibility Requirements** - Income limits and qualifications
+3. **Application Process** - How to apply for assistance
+4. **Income and Asset Calculations** - Understanding HCV math
+5. **Payment Standards and Rent** - Rent calculation methods
+6. **Voucher Process** - Using your HCV voucher
+7. **Tenant Rights and Responsibilities** - Legal obligations and protections
+
+## Usage Guide
+
+### Basic Workflow
+
+1. **Start the System**
+   ```bash
+   pnpm run full-system
+   ```
+
+2. **Open Web Interface**
+   - Navigate to http://localhost:3000
+   - You'll see the visual interface with lesson controls
+
+3. **Select a Lesson**
+   - Choose from the dropdown menu
+   - Each lesson has structured topics
+
+4. **Connect to Agent**
+   - Click "Connect to Agent" 
+   - The system will establish voice connection
+
+5. **Generate Slides**
+   - Click "Generate Slide" to create visual content
+   - Slides will display in the main panel
+   - Different slide types: title, content, chart, process
+
+6. **Navigate Topics**
+   - Use "Next Topic" to progress through lesson content
+   - Each topic can generate its own slide
+
+### Slide Types
+
+- **Title Slides**: Lesson overview with key points
+- **Content Slides**: Detailed bullet points and information
+- **Chart Slides**: Data visualizations (income limits, etc.)
+- **Process Slides**: Step-by-step workflows
+
+### Voice Interaction
+
+The agent provides:
+- Natural voice responses using Cartesia TTS
+- Structured lesson progression
+- Interactive Q&A capabilities
+- HCV-specific knowledge and tools
+
+## Development
+
+### Project Structure
+
+```
+agent-starter-node/
+├── src/
+│   ├── agent.ts              # Main LiveKit agent
+│   ├── slide-generator.ts    # Slide generation logic
+│   └── agent.test.ts         # Tests
+├── public/
+│   └── index.html           # Visual web interface
+├── server.js                # Express web server
+├── start-visual-system.js   # System startup script
+├── package.json             # Dependencies and scripts
+└── README.md               # This file
 ```
 
-## Run the agent
+### Adding New Lessons
 
-Before your first run, you must download certain models such as [Silero VAD](https://docs.livekit.io/agents/build/turns/vad/) and the [LiveKit turn detector](https://docs.livekit.io/agents/build/turns/turn-detector/):
+1. Update lesson data in `src/agent.ts`
+2. Add lesson content in `server.js`
+3. Update the web interface dropdown
+4. Test slide generation for new content
 
-```console
-pnpm run download-files
-```
+### Customizing Slides
 
-To run the agent during development, use the `dev` command:
+Modify `src/slide-generator.ts` to:
+- Change slide styling and colors
+- Add new slide types
+- Customize layouts and animations
+- Integrate with external charting libraries
 
-```console
+## Troubleshooting
+
+### Common Issues
+
+1. **Agent won't connect**
+   - Check LiveKit credentials in `.env.local`
+   - Ensure LiveKit Cloud account is active
+   - Verify network connectivity
+
+2. **Slides not displaying**
+   - Check browser console for errors
+   - Ensure web server is running on port 3000
+   - Try refreshing the page
+
+3. **Voice not working**
+   - Check microphone permissions
+   - Verify Cartesia API key
+   - Test with different browsers
+
+### Debug Mode
+
+Run individual components for debugging:
+```bash
+# Visual interface only
+pnpm run visual
+
+# Agent only  
 pnpm run dev
 ```
 
-In production, use the `start` command:
+## API Reference
 
-```console
-pnpm run start
-```
+### Web Server Endpoints
 
-## Frontend & Telephony
+- `GET /` - Main visual interface
+- `GET /api/lessons` - Get all available lessons
+- `GET /api/lesson/:lesson` - Get specific lesson data
+- `GET /api/slide/:lesson/:type` - Generate slide data
 
-Get started quickly with our pre-built frontend starter apps, or add telephony support:
+### Agent Tools
 
-| Platform         | Link                                                                                                                | Description                                        |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| **Web**          | [`livekit-examples/agent-starter-react`](https://github.com/livekit-examples/agent-starter-react)                   | Web voice AI assistant with React & Next.js        |
-| **iOS/macOS**    | [`livekit-examples/agent-starter-swift`](https://github.com/livekit-examples/agent-starter-swift)                   | Native iOS, macOS, and visionOS voice AI assistant |
-| **Flutter**      | [`livekit-examples/agent-starter-flutter`](https://github.com/livekit-examples/agent-starter-flutter)               | Cross-platform voice AI assistant app              |
-| **React Native** | [`livekit-examples/voice-assistant-react-native`](https://github.com/livekit-examples/voice-assistant-react-native) | Native mobile app with React Native & Expo         |
-| **Android**      | [`livekit-examples/agent-starter-android`](https://github.com/livekit-examples/agent-starter-android)               | Native Android app with Kotlin & Jetpack Compose   |
-| **Web Embed**    | [`livekit-examples/agent-starter-embed`](https://github.com/livekit-examples/agent-starter-embed)                   | Voice AI widget for any website                    |
-| **Telephony**    | [📚 Documentation](https://docs.livekit.io/agents/start/telephony/)                                                 | Add inbound or outbound calling to your agent      |
+The agent includes these tools:
+- `checkEligibility` - Check HCV eligibility
+- `calculateRent` - Calculate rent amounts
+- `explainHCVTerm` - Explain HCV terminology
+- `startLesson` - Begin a lesson
+- `nextTopic` - Progress to next topic
+- `generateSlide` - Create visual slide
 
-For advanced customization, see the [complete frontend guide](https://docs.livekit.io/agents/start/frontend/).
+## Contributing
 
-## Using this template repo for your own project
-
-Once you've started your own project based on this repo, you should:
-
-1. **Check in your `pnpm-lock.yaml`**: This file is currently untracked for the template, but you should commit it to your repository for reproducible builds and proper configuration management. (The same applies to `livekit.toml`, if you run your agents in LiveKit Cloud)
-
-2. **Remove the git tracking test**: Delete the "Check files not tracked in git" step from `.github/workflows/tests.yml` since you'll now want this file to be tracked. These are just there for development purposes in the template repo itself.
-
-## Deploying to production
-
-This project is production-ready and includes a working `Dockerfile`. To deploy it to LiveKit Cloud or another environment, see the [deploying to production](https://docs.livekit.io/agents/ops/deployment/) guide.
-
-## Self-hosted LiveKit
-
-You can also self-host LiveKit instead of using LiveKit Cloud. See the [self-hosting](https://docs.livekit.io/home/self-hosting/) guide for more information. If you choose to self-host, you'll need to also use [model plugins](https://docs.livekit.io/agents/models/#plugins) instead of LiveKit Inference and will need to remove the [LiveKit Cloud noise cancellation](https://docs.livekit.io/home/cloud/noise-cancellation/) plugin.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support
+
+For issues and questions:
+- Check the troubleshooting section above
+- Review LiveKit documentation
+- Open an issue in the repository
+
+---
+
+**Happy HCV Training! 🏠📚**
