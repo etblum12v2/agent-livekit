@@ -316,10 +316,28 @@
                 this.currentRoom = null;
                 this.currentLesson = null;
                 this.currentSlide = null;
+                this.livekitUrl = '';
                 
                 this.initializeElements();
                 this.attachEventListeners();
+                this.loadConfig();
                 this.updateUI();
+            }
+
+            async loadConfig() {
+                try {
+                    const response = await fetch('/api/config');
+                    const config = await response.json();
+                    this.livekitUrl = config.livekitUrl;
+                    
+                    if (this.livekitUrl) {
+                        console.log('LiveKit URL loaded:', this.livekitUrl);
+                    } else {
+                        console.warn('LiveKit URL not configured in .env.local');
+                    }
+                } catch (error) {
+                    console.error('Failed to load config:', error);
+                }
             }
 
             initializeElements() {
@@ -356,12 +374,19 @@
                 this.hideMessages();
 
                 try {
+                    if (!this.livekitUrl) {
+                        throw new Error('LiveKit URL not configured. Please add LIVEKIT_URL to your .env.local file');
+                    }
+
+                    console.log('Connecting to LiveKit at:', this.livekitUrl);
+                    
                     // For now, simulate connection - in real implementation, this would connect to LiveKit
+                    // TODO: Implement actual LiveKit connection using livekit-client
                     await this.simulateConnection();
                     this.isConnected = true;
                     this.currentRoom = `hcv_training_${Date.now()}`;
                     this.updateUI();
-                    this.showSuccess('Connected to HCV Training Agent!');
+                    this.showSuccess(`Connected to HCV Training Agent at ${this.livekitUrl}`);
                 } catch (error) {
                     this.showError(`Connection failed: ${error.message}`);
                 } finally {
@@ -772,7 +797,7 @@
                 } else {
                     this.statusIndicator.className = 'status-indicator status-disconnected';
                     this.statusIndicator.textContent = 'Disconnected';
-                    this.connectionStatus.textContent = 'Not connected to agent';
+                    this.connectionStatus.textContent = this.livekitUrl ? `Ready to connect to ${this.livekitUrl}` : 'Not connected to agent';
                     this.roomInfo.textContent = 'No room active';
                 }
 

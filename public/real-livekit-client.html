@@ -329,7 +329,7 @@
             <div class="config-section">
                 <h3>LiveKit Configuration</h3>
                 <label>LiveKit URL:</label>
-                <input type="text" id="livekitUrl" placeholder="wss://your-project.livekit.cloud" value="wss://your-project.livekit.cloud">
+                <input type="text" id="livekitUrl" placeholder="wss://your-project.livekit.cloud" value="">
                 <label>Room Name:</label>
                 <input type="text" id="roomName" placeholder="hcv-training-room" value="hcv-training-room">
                 <label>Participant Name:</label>
@@ -405,7 +405,29 @@
                 
                 this.initializeElements();
                 this.attachEventListeners();
+                this.loadConfig();
                 this.updateUI();
+            }
+
+            async loadConfig() {
+                try {
+                    console.log('Loading config from server...');
+                    const response = await fetch('/api/config');
+                    console.log('Config response status:', response.status);
+                    const config = await response.json();
+                    console.log('Config received:', config);
+                    
+                    if (config.livekitUrl) {
+                        this.livekitUrlInput.value = config.livekitUrl;
+                        console.log('LiveKit URL loaded from .env.local and set in input field:', config.livekitUrl);
+                        console.log('Input field value is now:', this.livekitUrlInput.value);
+                    } else {
+                        console.warn('LiveKit URL not configured in .env.local');
+                        console.log('Current input value:', this.livekitUrlInput.value);
+                    }
+                } catch (error) {
+                    console.error('Failed to load config:', error);
+                }
             }
 
             initializeElements() {

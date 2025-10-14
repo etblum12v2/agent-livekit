@@ -38,6 +38,17 @@ app.use(express.json());
 // Store active connections
 const activeConnections = new Map();
 
+// API endpoint to get LiveKit configuration
+app.get('/api/config', (req, res) => {
+    console.log('Config endpoint called');
+    console.log('LIVEKIT_URL from env:', process.env.LIVEKIT_URL);
+    const config = {
+        livekitUrl: process.env.LIVEKIT_URL || ''
+    };
+    console.log('Sending config:', config);
+    res.json(config);
+});
+
 // Generate LiveKit access token
 app.post('/api/livekit/token', async (req, res) => {
   try {

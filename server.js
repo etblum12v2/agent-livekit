@@ -2,6 +2,10 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'node:url';
 import fs from 'fs';
+import dotenv from 'dotenv';
+
+// Load environment variables from .env.local
+dotenv.config({ path: '.env.local' });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,6 +16,17 @@ const PORT = process.env.PORT || 3000;
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
+
+// API endpoint to get LiveKit configuration
+app.get('/api/config', (req, res) => {
+    console.log('Config endpoint called');
+    console.log('LIVEKIT_URL from env:', process.env.LIVEKIT_URL);
+    const config = {
+        livekitUrl: process.env.LIVEKIT_URL || ''
+    };
+    console.log('Sending config:', config);
+    res.json(config);
+});
 
 // API endpoint to get slide data
 app.get('/api/slide/:lesson/:type', (req, res) => {
